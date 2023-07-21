@@ -4,11 +4,17 @@ from .models import (Recipe, Ingredient, Tag, RecipeIngredient, RecipeTag,
                      Follow, Favorite, ShoppingList)
 
 
+class RecipeIngredientInline(admin.StackedInline):
+    model = RecipeIngredient
+    min_num = 1
+
+
 class RecipeAdmin(admin.ModelAdmin):
     list_display = ('id', 'author', 'name', 'text', 'cooking_time',
                     'is_favorited')
     list_filter = ('name', 'author', 'tags')
     ordering = ['id']
+    inlines = (RecipeIngredientInline,)
 
     def is_favorited(self, obj):
         return len(Favorite.objects.filter(recipe=obj))

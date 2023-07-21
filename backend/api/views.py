@@ -1,18 +1,20 @@
+import io
+
 from rest_framework import viewsets, mixins, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
-
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 
-from recipes.models import (Recipe, Ingredient, Tag, Follow, Favorite,
-                            ShoppingList, RecipeIngredient)
+from recipes.models import (Recipe, Ingredient, Tag, Favorite, ShoppingList,
+                            RecipeIngredient)
 from users.models import User
 from .serializers import (RecipeSerializer, RecipeAddSerializer,
                           IngredientSerializer, TagSerializer,
-                          FollowSerializer, ShortRecipeSerializer)
+                          FollowSerializer, ShoppingListSerializer,
+                          FollowAddSerializer, FavoriteSerializer)
 from .permissions import AuthorOrAdminOrReadOnly
 
 
@@ -77,16 +79,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
         for key, value in shopping_list.items():
             text += (f"{key} ({value['measurement_unit']}) - "
                      f"{value['amount']}\n")
-        file_path = 'shopping_list.txt'
-        print(file_path)
-        file = open(file_path, 'w')
-        file.write(text)
-        file.close()
-        file = open(file_path, 'r')
-        response = HttpResponse(file, content_type='text')
+        # file_path = 'shopping_list.txt'
+        # file = open(file_path, 'w')
+        # file.write(text)
+        # file.close()
+        # file = open(file_path, 'r')
+        buffer = io.StringIO()
+        buffer.write(text)
+        response = HttpResponse(buffer.getvalue(), content_type='text/plain')
         response['Content-Disposition'] = (
             'attachment; filename=shopping_list.txt')
-        file.close()
         return response
 
 
@@ -114,93 +116,64 @@ class FollowViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
 
 class APIFollowAddDelete(APIView):
-    def post(self, request, user_id):
-        author = get_object_or_404(User, id=user_id)
-        user = request.user
-        if author == user:
-            return Response(
-                {'error': 'Нельзя подписаться на самого себя!'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if Follow.objects.filter(user=user, author=author).exists():
-            return Response(
-                {'error': 'Подписка на этого автора уже существует!'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        Follow.objects.create(user=user, author=author)
-        context = {'request': request}
-        return Response(
-            FollowSerializer(author, context=context).data,
-            status=status.HTTP_201_CREATED
-        )
+    serializer_class = FollowAddSerializer
+    model = User
+    data_keys = ('user', 'author')
 
-    def delete(self, request, user_id):
-        author = get_object_or_404(User, id=user_id)
+    def post(self, request, id):
+        obj = get_object_or_404(self.model, id=id)
+        serializer = self.serializer_class(
+            data={self.data_keys[0]: request.user.id,
+                  self.data_keys[1]: obj.id},
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, id):
+        author = get_object_or_404(self.model, id=id)
         user = request.user
-        if not Follow.objects.filter(user=user, author=author).exists():
+        follow = user.follower.filter(author=author).first()
+        if not follow:
             return Response(
                 {'error': 'Подписка на этого автора не существует!'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        Follow.objects.get(user=user, author=author).delete()
+        follow.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class APIFaforiteAddDelete(APIView):
+class APIFaforiteAddDelete(APIFollowAddDelete):
     permission_classes = [IsAuthenticated]
-
-    def post(self, request, id):
-        recipe = get_object_or_404(Recipe, id=id)
-        user = request.user
-        if Favorite.objects.filter(user=user, recipe=recipe).exists():
-            return Response(
-                {'error': 'Рецепт уже есть в избранном!'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        Favorite.objects.create(user=user, recipe=recipe)
-        context = {'request': request}
-        return Response(
-            ShortRecipeSerializer(recipe, context=context).data,
-            status=status.HTTP_201_CREATED
-        )
+    serializer_class = FavoriteSerializer
+    model = Recipe
+    data_keys = ('user', 'recipe')
 
     def delete(self, request, id):
-        recipe = get_object_or_404(Recipe, id=id)
+        recipe = get_object_or_404(self.model, id=id)
         user = request.user
-        if not Favorite.objects.filter(user=user, recipe=recipe).exists():
+        favorite = user.favorite_user.filter(recipe=recipe).first()
+        if not favorite:
             return Response(
                 {'error': 'Этого рецепта нет в избранном!'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        Favorite.objects.get(user=user, recipe=recipe).delete()
+        favorite.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class APIShoppingListAddDelete(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, id):
-        recipe = get_object_or_404(Recipe, id=id)
-        user = request.user
-        if ShoppingList.objects.filter(user=user, recipe=recipe).exists():
-            return Response(
-                {'error': 'Рецепт уже есть в списке покупок!'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        ShoppingList.objects.create(user=user, recipe=recipe)
-        context = {'request': request}
-        return Response(
-            ShortRecipeSerializer(recipe, context=context).data,
-            status=status.HTTP_201_CREATED
-        )
+class APIShoppingListAddDelete(APIFaforiteAddDelete):
+    serializer_class = ShoppingListSerializer
 
     def delete(self, request, id):
-        recipe = get_object_or_404(Recipe, id=id)
+        recipe = get_object_or_404(self.model, id=id)
         user = request.user
-        if not ShoppingList.objects.filter(user=user, recipe=recipe).exists():
+        shopping_object = user.shop_user.filter(recipe=recipe).first()
+        if not shopping_object:
             return Response(
                 {'error': 'Этого рецепта нет в списке покупок!'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        ShoppingList.objects.get(user=user, recipe=recipe).delete()
+        shopping_object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

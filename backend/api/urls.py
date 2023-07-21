@@ -1,5 +1,4 @@
 from django.urls import include, path
-
 from rest_framework.routers import DefaultRouter
 
 from .views import (RecipeViewSet, IngredientViewSet, TagViewSet,
@@ -16,7 +15,7 @@ router_v1.register('tags', TagViewSet)
 
 urlpatterns = [
     path('users/subscriptions/', FollowViewSet.as_view({'get': 'list'})),
-    path('users/<int:user_id>/subscribe/', APIFollowAddDelete.as_view()),
+    path('users/<int:id>/subscribe/', APIFollowAddDelete.as_view()),
     path('recipes/<int:id>/favorite/', APIFaforiteAddDelete.as_view()),
     path('recipes/<int:id>/shopping_cart/',
          APIShoppingListAddDelete.as_view()),
