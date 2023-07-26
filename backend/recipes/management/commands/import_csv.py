@@ -9,7 +9,7 @@ class Command(BaseCommand):
     help = 'Import data from CSV to db'
 
     def handle(self, *args, **options):
-        file = '../data/ingredients.csv'
+        file = 'ingredients.csv'
         with open(file, encoding='utf-8') as f:
             reader = csv.reader(f)
             total = 0

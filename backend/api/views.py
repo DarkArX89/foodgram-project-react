@@ -8,8 +8,7 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 
-from recipes.models import (Recipe, Ingredient, Tag, Favorite, ShoppingList,
-                            RecipeIngredient)
+from recipes.models import (Recipe, Ingredient, Tag, RecipeIngredient)
 from users.models import User
 from .serializers import (RecipeSerializer, RecipeAddSerializer,
                           IngredientSerializer, TagSerializer,
@@ -31,6 +30,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         is_in_shopping_cart = self.request.query_params.get(
             'is_in_shopping_cart')
         tags = dict(self.request.query_params).get('tags')
+        user = self.request.user
         if limit:
             queryset = queryset[:int(limit)]
         if author:
@@ -41,14 +41,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 tags_id.append(get_object_or_404(Tag, slug=tag))
             queryset = queryset.filter(tags__in=tags_id)
         if is_favorited:
-            favorited = Favorite.objects.filter(user=self.request.user)
+            favorited = user.favorite_user.all()
             favorited_name_list = []
             for favorite in favorited:
                 favorited_name_list.append(favorite.recipe)
             queryset = queryset.filter(name__in=favorited_name_list)
         if is_in_shopping_cart:
-            shopping_cart = ShoppingList.objects.filter(
-                user=self.request.user)
+            shopping_cart = user.shop_user.all()
             shopping_cart_list = []
             for element in shopping_cart:
                 shopping_cart_list.append(element.recipe)
@@ -79,11 +78,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         for key, value in shopping_list.items():
             text += (f"{key} ({value['measurement_unit']}) - "
                      f"{value['amount']}\n")
-        # file_path = 'shopping_list.txt'
-        # file = open(file_path, 'w')
-        # file.write(text)
-        # file.close()
-        # file = open(file_path, 'r')
         buffer = io.StringIO()
         buffer.write(text)
         response = HttpResponse(buffer.getvalue(), content_type='text/plain')
@@ -118,13 +112,11 @@ class FollowViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 class APIFollowAddDelete(APIView):
     serializer_class = FollowAddSerializer
     model = User
-    data_keys = ('user', 'author')
 
     def post(self, request, id):
         obj = get_object_or_404(self.model, id=id)
         serializer = self.serializer_class(
-            data={self.data_keys[0]: request.user.id,
-                  self.data_keys[1]: obj.id},
+            data={'user': request.user.id, 'author': obj.id},
             context={'request': request}
         )
         serializer.is_valid(raise_exception=True)
@@ -148,7 +140,16 @@ class APIFaforiteAddDelete(APIFollowAddDelete):
     permission_classes = [IsAuthenticated]
     serializer_class = FavoriteSerializer
     model = Recipe
-    data_keys = ('user', 'recipe')
+
+    def post(self, request, id):
+        obj = get_object_or_404(self.model, id=id)
+        serializer = self.serializer_class(
+            data={'user': request.user.id, 'recipe': obj.id},
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, id):
         recipe = get_object_or_404(self.model, id=id)
