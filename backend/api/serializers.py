@@ -3,11 +3,9 @@ import base64
 from django.core.files.base import ContentFile
 from rest_framework import serializers
 from djoser.serializers import UserSerializer, UserCreateSerializer
-
 from users.models import User
 from recipes.models import (Recipe, Ingredient, Tag, RecipeIngredient,
                             Follow, Favorite, ShoppingList)
-
 
 MIN_VALUE = 1
 MAX_VALUE = 32000

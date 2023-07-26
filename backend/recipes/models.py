@@ -1,9 +1,7 @@
 from django.utils import timezone
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-
 from users.models import User
-
 
 MIN_VALUE = 1
 MAX_VALUE = 32000

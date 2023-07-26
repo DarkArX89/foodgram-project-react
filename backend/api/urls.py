@@ -5,7 +5,6 @@ from .views import (RecipeViewSet, IngredientViewSet, TagViewSet,
                     FollowViewSet, APIFollowAddDelete, APIFaforiteAddDelete,
                     APIShoppingListAddDelete)
 
-
 app_name = 'api'
 
 router_v1 = DefaultRouter()
