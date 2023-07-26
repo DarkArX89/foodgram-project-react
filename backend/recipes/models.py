@@ -68,7 +68,7 @@ class Recipe(models.Model):
         'Дата публикации', default=timezone.now)
 
     class Meta:
-        ordering = ['pub_date']
+        ordering = ['-pub_date']
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
         constraints = [models.UniqueConstraint(
