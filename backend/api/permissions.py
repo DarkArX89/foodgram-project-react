@@ -5,7 +5,8 @@ class AuthorOrAdminOrReadOnly(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return ((request.method in permissions.SAFE_METHODS
-                 and len(request.query_params) == 0)
+                 and ('is_favorited' not in request.query_params
+                      and 'is_in_shopping_cart' not in request.query_params))
                 or request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):

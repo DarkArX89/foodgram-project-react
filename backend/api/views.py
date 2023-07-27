@@ -7,7 +7,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
-
 from recipes.models import (Recipe, Ingredient, Tag, RecipeIngredient)
 from users.models import User
 from .serializers import (RecipeSerializer, RecipeAddSerializer,
@@ -15,43 +14,35 @@ from .serializers import (RecipeSerializer, RecipeAddSerializer,
                           FollowSerializer, ShoppingListSerializer,
                           FollowAddSerializer, FavoriteSerializer)
 from .permissions import AuthorOrAdminOrReadOnly
+from .filters import IngredientSearchFilter
+from .pagination import CustomPageNumberPagination
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
     serializer_class = RecipeSerializer
     permission_classes = (AuthorOrAdminOrReadOnly,)
     http_method_names = ['get', 'post', 'patch', 'delete']
+    pagination_class = CustomPageNumberPagination
 
     def get_queryset(self):
         queryset = Recipe.objects.all()
-        limit = self.request.query_params.get('limit')
         author = self.request.query_params.get('author')
         is_favorited = self.request.query_params.get('is_favorited')
         is_in_shopping_cart = self.request.query_params.get(
             'is_in_shopping_cart')
         tags = dict(self.request.query_params).get('tags')
         user = self.request.user
-        if limit:
-            queryset = queryset[:int(limit)]
         if author:
             queryset = queryset.filter(author=author)
         if tags:
             tags_id = []
             for tag in tags:
                 tags_id.append(get_object_or_404(Tag, slug=tag))
-            queryset = queryset.filter(tags__in=tags_id)
+            queryset = queryset.filter(tags__in=tags_id).distinct()
         if is_favorited:
-            favorited = user.favorite_user.all()
-            favorited_name_list = []
-            for favorite in favorited:
-                favorited_name_list.append(favorite.recipe)
-            queryset = queryset.filter(name__in=favorited_name_list)
+            queryset = queryset.filter(favorite_recipe__user=user)
         if is_in_shopping_cart:
-            shopping_cart = user.shop_user.all()
-            shopping_cart_list = []
-            for element in shopping_cart:
-                shopping_cart_list.append(element.recipe)
-            queryset = queryset.filter(name__in=shopping_cart_list)
+            queryset = queryset.filter(shop_recipe__user=user)
         return queryset
 
     def get_serializer_class(self):
@@ -89,6 +80,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
+    filter_backends = (IngredientSearchFilter,)
+    search_fields = ('^name',)
     pagination_class = None
 
 
