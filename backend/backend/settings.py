@@ -8,7 +8,6 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', default='default')
 DEBUG = os.getenv('DEBUG').lower() == 'true'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS').split(',')
-#['158.160.64.203', 'localhost', '127.0.0.1', 'foodgram-mikhaylets.didns.ru']
 
 INSTALLED_APPS = [
     'users.apps.UsersConfig',
