@@ -7,8 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
-from recipes.models import (Recipe, Ingredient, Tag, RecipeIngredient)
+
 from users.models import User
+from recipes.models import (Recipe, Ingredient, Tag, RecipeIngredient)
 from .serializers import (RecipeSerializer, RecipeAddSerializer,
                           IngredientSerializer, TagSerializer,
                           FollowSerializer, ShoppingListSerializer,
